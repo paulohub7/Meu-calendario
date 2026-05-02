@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meu Calendário FIT</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+    <!-- Login Page -->
+    <div id="loginPage" class="page">
+        <div class="login-container">
+            <div class="login-box">
+                <h1 class="logo"><i class="fas fa-water"></i> Meu Calendário FIT</h1>
+                <p class="subtitle">Rastreie seus treinos e hidratação 💧🂪</p>
+                
+                <div id="g_id_onload"
+                     data-client_id="YOUR_GOOGLE_CLIENT_ID"
+                     data-callback="handleCredentialResponse">
+                </div>
+                <div class="g_id_signin" data-type="standard"></div>
+                
+                <div class="divider">OU</div>
+                
+                <form id="loginForm">
+                    <input type="email" id="loginEmail" placeholder="📬 Email" required>
+                    <input type="password" id="loginPassword" placeholder="🔐 Senha" required>
+                    <button type="submit" class="btn btn-primary">Entrar 🚀</button>
+                </form>
+                
+                <div class="signup-link">
+                    Não tem conta? <a href="#" onclick="showSignup()">Criar conta</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Signup Page -->
+    <div id="signupPage" class="page" style="display: none;">
+        <div class="login-container">
+            <div class="login-box">
+                <h1 class="logo"><i class="fas fa-water"></i> Meu Calendário FIT</h1>
+                <p class="subtitle">Criar nova conta ✨</p>
+                
+                <form id="signupForm">
+                    <input type="text" id="signupName" placeholder="👤 Nome completo" required>
+                    <input type="email" id="signupEmail" placeholder="📬 Email" required>
+                    <input type="password" id="signupPassword" placeholder="🔐 Senha" required>
+                    <input type="password" id="signupPassword2" placeholder="🔐 Confirmar senha" required>
+                    <button type="submit" class="btn btn-primary">Criar Conta 🙋</button>
+                </form>
+                
+                <div class="signup-link">
+                    Já tem conta? <a href="#" onclick="showLogin()">Entrar</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="mainApp" class="page" style="display: none;">
+        <nav class="navbar">
+            <div class="nav-container">
+                <h1 class="nav-logo"><i class="fas fa-water"></i> Meu Calendário FIT</h1>
+                <div class="nav-links">
+                    <button class="nav-btn" onclick="switchTab('calendar')"><i class="fas fa-calendar"></i> Calendário</button>
+                    <button class="nav-btn" onclick="switchTab('water')"><i class="fas fa-cup-water"></i> Água</button>
+                    <button class="nav-btn" onclick="switchTab('measurements')"><i class="fas fa-ruler"></i> Medidas</button>
+                    <button class="nav-btn" onclick="switchTab('performance')"><i class="fas fa-chart-line"></i> Desempenho</button>
+                    <button class="nav-btn" onclick="switchTab('friends')"><i class="fas fa-users"></i> Amigos</button>
+                    <button class="nav-btn" onclick="switchTab('themes')"><i class="fas fa-palette"></i> Temas</button>
+                    <button class="nav-btn profile-btn" onclick="showProfile()"><i class="fas fa-user-circle"></i></button>
+                    <button class="nav-btn logout-btn" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Sair</button>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Calendar Tab -->
+        <section id="calendarTab" class="tab-content" aria-label="Calendario de treinos">
+            <main class="container">
+                <header class="section-header">
+                    <h2><i class="fas fa-calendar-check"></i> Calendário de Treinos</h2>
+                </header>
+
+                <article class="calendar-container">
+                    <div class="calendar-header">
+                        <button onclick="previousMonth()" aria-label="Mês anterior">&lt;</button>
+                        <h3 id="currentMonth" aria-live="polite"></h3>
+                        <button onclick="nextMonth()" aria-label="Próximo mês">&gt;</button>
+                    </div>
+                    
+                    <article class="calendar">
+                        <div class="weekdays" role="rowheader">
+                            <span role="columnheader">DOM</span>
+                            <span role="columnheader">SEG</span>
+                            <span role="columnheader">TER</span>
+                            <span role="columnheader">QUA</span>
+                            <span role="columnheader">QUI</span>
+                            <span role="columnheader">SEX</span>
+                            <span role="columnheader">SÁB</span>
+                        </div>
+                        <div id="calendarDays" class="days" role="grid" aria-label="Dias do mês"></div>
+                    </article>
+                </article>
+
+                <section class="stats-grid" aria-label="Estatisticas dos treinos">
+                    <div class="stat-card">
+                        <div class="stat-icon checked"><i class="fas fa-check-circle"></i></div>
+                        <div class="stat-content">
+                            <div class="stat-label">Treinos Este Mês</div>
+                            <div class="stat-value" id="monthWorkouts">0</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon streak"><i class="fas fa-fire"></i></div>
+                        <div class="stat-content">
+                            <div class="stat-label">Sequência de Dias</div>
+                            <div class="stat-value" id="streakDays">0</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon target"><i class="fas fa-target"></i></div>
+                        <div class="stat-content">
+                            <div class="stat-label">Meta do Mês</div>
+                            <div class="stat-value" id="monthGoal">20 dias</div>
+                        </div>
+                    </div>
+                </section>
+            </main>
+        </section>
+
+        <!-- Water Tab -->
+        <section id="waterTab" class="tab-content" style="display: none;" aria-label="Hidratacao diaria">
+            <main class="container">
+                <header class="section-header">
+                    <h2><i class="fas fa-cup-water"></i> Hidratação Diária</h2>
+                </header>
+
+                <div class="water-section">
+                    <div class="water-card">
+                        <div class="water-header">
+                            <h3>Água Ingerida Hoje</h3>
+                            <div class="date-display" id="todayDate"></div>
+                        </div>
+
+                        <div class="water-progress">
+                            <div class="progress-ring">
+                                <svg width="200" height="200">
+                                    <circle cx="100" cy="100" r="90" class="progress-background"></circle>
+                                    <circle cx="100" cy="100" r="90" id="progressCircle" class="progress-fill" 
+                                            style="stroke-dashoffset: 565.48px;"></circle>
+                                </svg>
+                                <div class="progress-text">
+                                    <div class="water-amount" id="waterAmount">0</div>
+                                    <div class="water-unit">ml / 2000ml</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="water-controls">
+                            <div class="water-input-group">
+                                <label>Ajustar ML de água:</label>
+                                <div class="input-group">
+                                    <button onclick="decreaseWater()" class="btn-control">-</button>
+                                    <input type="number" id="waterInput" min="0" max="5000" value="250">
+                                    <button onclick="increaseWater()" class="btn-control">+</button>
+                                </div>
+                                <button onclick="addCustomWater()" class="btn btn-secondary">Adicionar</button>
+                            </div>
+
+                            <div class="quick-add">
+                                <label>Copos rápidos:</label>
+                                <div class="quick-buttons">
+                                    <button onclick="addWaterCup(250)" class="btn btn-quick">Copo (250ml)</button>
+                                    <button onclick="addWaterCup(500)" class="btn btn-quick">500ml</button>
+                                    <button onclick="addWaterCup(750)" class="btn btn-quick">750ml</button>
+                                    <button onclick="addWaterCup(1000)" class="btn btn-quick">1L</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="reset-button">
+                            <button onclick="resetWaterToday()" class="btn btn-danger">Resetar Hoje</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="records-section">
+                    <div class="section-header">
+                        <h3><i class="fas fa-history"></i> Histórico de Água</h3>
+                    </div>
+                    
+                    <div class="records-filters">
+                        <button onclick="filterRecords('week')" class="filter-btn active" id="filterWeek">Última Semana</button>
+                        <button onclick="filterRecords('month')" class="filter-btn" id="filterMonth">Último Mês</button>
+                        <button onclick="filterRecords('all')" class="filter-btn" id="filterAll">Tudo</button>
+                    </div>
+
+                    <div class="records-table">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Data</th>
+                                    <th>Quantidade (ml)</th>
+                                    <th>Hora</th>
+                                    <th>Ação</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recordsTableBody">
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="chart-section">
+                        <h3>Consumo Diário (Últimos 7 dias)</h3>
+                        <div id="waterChart" class="chart"></div>
+                    </div>
+                </div>
+            </main>
+        </section>
+
+        <!-- Friends Tab -->
+        <section id="friendsTab" class="tab-content" style="display: none;" aria-label="Gerenciamento de amigos">
+            <main class="container">
+                <header class="section-header">
+                    <h2><i class="fas fa-users"></i> Meus Amigos</h2>
+                </header>
+
+                <div class="friends-section">
+                    <div class="add-friend">
+                        <h3>Adicionar Amigos</h3>
+                        <div class="input-group">
+                            <input type="email" id="friendEmail" placeholder="Email do amigo">
+                            <button onclick="addFriend()" class="btn btn-primary">Adicionar</button>
+                        </div>
+                        <div id="friendsMessage" class="message"></div>
+                    </div>
+
+                    <div class="friends-list">
+                        <h3>Amigos <span id="friendsCount">0</span></h3>
+                        <div id="friendsListContainer" class="friends-cards">
+                            <div class="empty-state">Nenhum amigo adicionado ainda</div>
+                        </div>
+                    </div>
+
+                    <div class="pending-requests">
+                        <h3>Solicitações Pendentes</h3>
+                        <div id="pendingRequestsContainer" class="friends-cards">
+                            <div class="empty-state">Nenhuma solicitação pendente</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="leaderboard-section">
+                    <h3><i class="fas fa-trophy"></i> Ranking de Hidratação (Últimos 7 dias)</h3>
+                    <div id="leaderboard" class="leaderboard">
+                        <div class="empty-state">Adicione amigos para ver o ranking</div>
+                    </div>
+                </div>
+            </main>
+        </section>
+
+        <!-- Themes Tab -->
+        <section id="themesTab" class="tab-content" style="display: none;" aria-label="Personalizador de Temas">
+            <main class="container">
+                <header class="section-header">
+                    <h2><i class="fas fa-palette"></i> Personalize seu Tema 🎨</h2>
+                    <p class="section-subtitle">Desbloqueie novos temas cumprindo suas metas!</p>
+                </header>
+
+                <div class="themes-controls">
+                    <div class="themes-tabs">
+                        <button class="theme-tab-btn active" onclick="switchGender('female')"><i class="fas fa-heart"></i> Feminino</button>
+                        <button class="theme-tab-btn" onclick="switchGender('male')"><i class="fas fa-bolt"></i> Masculino</button>
+                    </div>
+
+                    <div class="themes-info-bar">
+                        <div class="info-item">
+                            <span class="info-label">Treinos:</span>
+                            <span class="info-value" id="themeWorkouts">0</span>/100
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Água:</span>
+                            <span class="info-value" id="themeWater">0</span>/50L
+                        </div>
+                    </div>
+                </div>
+
+                <div id="themesContainer" class="themes-grid">
+                    <!-- Temas serão carregados via JavaScript -->
+                </div>
+            </main>
+        </section>
+
+        <!-- Measurements Tab -->
+        <section id="measurementsTab" class="tab-content" style="display: none;" aria-label="Medidas Corporais">
+            <main class="container">
+                <header class="section-header">
+                    <h2><i class="fas fa-ruler"></i> Medidas Corporais 📏</h2>
+                    <p class="section-subtitle">Acompanhe seu progresso mês a mês!</p>
+                </header>
+
+                <div class="measurements-card">
+                    <div class="measurements-header">
+                        <h3>Registrar Medidas de <span id="currentMonth"></span></h3>
+                    </div>
+
+                    <div class="measurements-form">
+                        <div class="measurements-grid">
+                            <div class="measurement-input">
+                                <label>Peso (kg)</label>
+                                <input type="number" id="weight" step="0.1" placeholder="Ex: 75.5">
+                            </div>
+                            <div class="measurement-input">
+                                <label>Altura (cm)</label>
+                                <input type="number" id="height" step="0.1" placeholder="Ex: 180">
+                            </div>
+                            <div class="measurement-input">
+                                <label>Braço (cm)</label>
+                                <input type="number" id="arm" step="0.1" placeholder="Ex: 32">
+                            </div>
+                            <div class="measurement-input">
+                                <label>Peito (cm)</label>
+                                <input type="number" id="chest" step="0.1" placeholder="Ex: 100">
+                            </div>
+                            <div class="measurement-input">
+                                <label>Abdômen (cm)</label>
+                                <input type="number" id="abdomen" step="0.1" placeholder="Ex: 85">
+                            </div>
+                            <div class="measurement-input">
+                                <label>Cintura (cm)</label>
+                                <input type="number" id="waist" step="0.1" placeholder="Ex: 80">
+                            </div>
+                            <div class="measurement-input">
+                                <label>Coxa (cm)</label>
+                                <input type="number" id="thigh" step="0.1" placeholder="Ex: 55">
+                            </div>
+                            <div class="measurement-input">
+                                <label>Panturrilha (cm)</label>
+                                <input type="number" id="calf" step="0.1" placeholder="Ex: 38">
+                            </div>
+                        </div>
+                        <button onclick="saveMeasurements()" class="btn btn-primary" style="margin-top: 20px;">Salvar Medidas 💾</button>
+                    </div>
+                </div>
+
+                <div class="measurements-history">
+                    <h3>Histórico de Medidas</h3>
+                    <div id="measurementsHistoryContainer" class="history-container">
+                        <p style="text-align: center; color: var(--text-color); padding: 20px;">Nenhuma medida registrada ainda</p>
+                    </div>
+                </div>
+            </main>
+        </section>
+
+        <!-- Performance Tab -->
+        <section id="performanceTab" class="tab-content" style="display: none;" aria-label="Desempenho">
+            <main class="container">
+                <header class="section-header">
+                    <h2><i class="fas fa-chart-line"></i> Desempenho 📊</h2>
+                    <p class="section-subtitle">Acompanhe seu progresso e compare com amigos!</p>
+                </header>
+
+                <div class="performance-card">
+                    <div class="performance-header">
+                        <h3>Gráfico de Peso</h3>
+                        <div class="performance-controls">
+                            <label>Comparar com:</label>
+                            <select id="friendSelector" onchange="renderPerformanceTab()" class="friend-select">
+                                <option value="">Apenas meu desempenho</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="performance-chart-container">
+                        <canvas id="weightChart" width="800" height="400"></canvas>
+                    </div>
+                </div>
+
+                <div class="performance-stats">
+                    <div class="performance-stat-card" id="myWeightStats">
+                        <h4>Meu Peso</h4>
+                        <div class="stat-info">
+                            <div class="info-row">
+                                <span>Atual:</span>
+                                <strong id="currentWeight">-</strong>
+                            </div>
+                            <div class="info-row">
+                                <span>Variação:</span>
+                                <strong id="weightChange" style="color: #52B788;">-</strong>
+                            </div>
+                            <div class="info-row">
+                                <span>Mínimo:</span>
+                                <strong id="minWeight">-</strong>
+                            </div>
+                            <div class="info-row">
+                                <span>Máximo:</span>
+                                <strong id="maxWeight">-</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="performance-stat-card" id="friendWeightStats" style="display: none;">
+                        <h4 id="friendNameStats">Peso do Amigo</h4>
+                        <div class="stat-info">
+                            <div class="info-row">
+                                <span>Atual:</span>
+                                <strong id="friendCurrentWeight">-</strong>
+                            </div>
+                            <div class="info-row">
+                                <span>Variação:</span>
+                                <strong id="friendWeightChange" style="color: #52B788;">-</strong>
+                            </div>
+                            <div class="info-row">
+                                <span>Mínimo:</span>
+                                <strong id="friendMinWeight">-</strong>
+                            </div>
+                            <div class="info-row">
+                                <span>Máximo:</span>
+                                <strong id="friendMaxWeight">-</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </section>
+    </div>
+
+    <!-- Profile Modal -->
+    <div id="profileModal" class="modal" style="display: none;">
+        <div class="modal-content profile-modal">
+            <div class="modal-header">
+                <h2>Meu Perfil 👤</h2>
+                <button class="close-btn" onclick="closeProfile()">&times;</button>
+            </div>
+            <div class="profile-body">
+                <div class="profile-avatar-large">
+                    <div id="profileAvatarLarge" class="avatar-large"></div>
+                </div>
+                <div class="profile-info">
+                    <div class="profile-field">
+                        <label>Nome:</label>                
+                        <input type="text" id="profileName" readonly>
+                    </div>
+                    <div class="profile-field">
+                        <label>Email:</label>
+                        <input type="text" id="profileEmail" readonly>
+                    </div>
+                    <div class="profile-stats">
+                        <div class="profile-stat">
+                            <div class="stat-number" id="profileWorkouts">0</div>
+                            <div class="stat-label">Treinos 💪</div>
+                        </div>
+                        <div class="profile-stat">
+                            <div class="stat-number" id="profileWaterTotal">0</div>
+                            <div class="stat-label">Litros 💧</div>
+                        </div>
+                        <div class="profile-stat">
+                            <div class="stat-number" id="profileStreak">0</div>
+                            <div class="stat-label">Dias Seguidos 🔥</div>
+                        </div>
+                    </div>
+                    <div class="profile-rest-day">
+                        <div class="rest-day-display">
+                            <h3>Dia de Descanso 🛌</h3>
+                            <div class="rest-day-info-box">
+                                <span id="profileRestDay">-</span>
+                                <button onclick="editRestDay()" class="btn btn-secondary" style="margin-left: 10px; padding: 8px 16px; font-size: 12px;">Alterar</button>
+                            </div>
+                        </div>
+                        <div style="margin-top: 15px; display: flex; align-items: center; gap: 12px;">
+                            <label for="restDayColor" style="font-weight: 600; color: var(--text-color); font-size: 13px;">Cor do Dia de Descanso:</label>
+                            <input type="color" id="restDayColor" value="#B3E5FC" onchange="changeRestDayColor(this.value)" style="width: 50px; height: 40px; border: 2px solid var(--border); border-radius: 8px; cursor: pointer;">
+                        </div>
+                    </div>
+                    <div class="profile-achievements">
+                        <h3>🏆 Conquistas</h3>
+                        <div id="achievementsList" class="achievements-list"></div>
+                    </div>
+                    <div class="profile-reset">
+                        <button onclick="resetAccount()" class="btn btn-danger" style="width: 100%; margin-top: 20px;">
+                            <i class="fas fa-redo"></i> Resetar Conta
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rest Day Modal -->
+    <div id="restDayModal" class="modal" style="display: none;">
+        <div class="modal-content rest-day-modal">
+            <div class="modal-header">
+                <h2>Escolha seu Dia de Descanso 🛌</h2>
+            </div>
+            <div class="rest-day-body">
+                <p class="rest-day-subtitle">Qual é o seu dia preferido para descansar?</p>
+                <div class="weekdays-selector">
+                    <button class="day-selector" onclick="selectRestDay(0)" data-day="0">
+                        <span class="day-emoji">🌞</span>
+                        <span class="day-name">Domingo</span>
+                    </button>
+                    <button class="day-selector" onclick="selectRestDay(1)" data-day="1">
+                        <span class="day-emoji">🌙</span>
+                        <span class="day-name">Segunda</span>
+                    </button>
+                    <button class="day-selector" onclick="selectRestDay(2)" data-day="2">
+                        <span class="day-emoji">⭐</span>
+                        <span class="day-name">Terça</span>
+                    </button>
+                    <button class="day-selector" onclick="selectRestDay(3)" data-day="3">
+                        <span class="day-emoji">🌟</span>
+                        <span class="day-name">Quarta</span>
+                    </button>
+                    <button class="day-selector" onclick="selectRestDay(4)" data-day="4">
+                        <span class="day-emoji">🎯</span>
+                        <span class="day-name">Quinta</span>
+                    </button>
+                    <button class="day-selector" onclick="selectRestDay(5)" data-day="5">
+                        <span class="day-emoji">🎊</span>
+                        <span class="day-name">Sexta</span>
+                    </button>
+                    <button class="day-selector" onclick="selectRestDay(6)" data-day="6">
+                        <span class="day-emoji">🎉</span>
+                        <span class="day-name">Sábado</span>
+                    </button>
+                </div>
+                <p class="rest-day-info">Você poderá alterar isso depois no seu perfil</p>
+                <button id="confirmRestDayBtn" class="btn btn-primary" onclick="confirmSelectedRestDay()" style="margin-top: 20px; opacity: 0.5; cursor: not-allowed;" disabled>Confirmar 🎯</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Rest Day Modal -->
+    <div id="editRestDayModal" class="modal" style="display: none;">
+        <div class="modal-content rest-day-modal">
+            <div class="modal-header">
+                <h2>Gerenciar Dias de Descanso 🛌</h2>
+                <button class="close-btn" onclick="closeEditRestDay()">&times;</button>
+            </div>
+            <div class="rest-day-body">
+                <p class="rest-day-subtitle">Clique em um dia para marcar/desmarcar como descanso</p>
+                <div class="weekdays-selector" id="editRestDaySelector"></div>
+                <p class="rest-day-info">Suas seleções são salvas automaticamente</p>
+                <button class="btn btn-primary" onclick="closeEditRestDay()" style="margin-top: 20px;">Fechar ✓</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="themes-data.js"></script>
+    <script src="themes-integration.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
