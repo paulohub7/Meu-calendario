@@ -89,6 +89,7 @@
                         <button onclick="previousMonth()" aria-label="Mês anterior">&lt;</button>
                         <h3 id="currentMonth" aria-live="polite"></h3>
                         <button onclick="nextMonth()" aria-label="Próximo mês">&gt;</button>
+                        <button id="restDayConfigBtn" onclick="editRestDay()" aria-label="Configurar dia de descanso" style="padding: 4px 8px; background: transparent; border: none; font-size: 18px; cursor: pointer; opacity: 0.6; transition: all 0.3s;" title="Gerenciar dia e cor de descanso" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.6'">🛌</button>
                     </div>
                     
                     <article class="calendar">
@@ -141,8 +142,14 @@
                 <div class="water-section">
                     <div class="water-card">
                         <div class="water-header">
-                            <h3>Água Ingerida Hoje</h3>
-                            <div class="date-display" id="todayDate"></div>
+                            <div>
+                                <h3>Água Ingerida Hoje</h3>
+                                <div class="water-goal-display" id="waterGoalDisplay">Meta: 2000ml</div>
+                            </div>
+                            <div style="display: flex; gap: 10px; align-items: flex-start;">
+                                <div class="date-display" id="todayDate"></div>
+                                <button onclick="openWaterGoalModal()" class="btn-control" title="Definir meta diária" style="padding: 10px 12px; font-size: 16px;">🎯</button>
+                            </div>
                         </div>
 
                         <div class="water-progress">
@@ -154,7 +161,8 @@
                                 </svg>
                                 <div class="progress-text">
                                     <div class="water-amount" id="waterAmount">0</div>
-                                    <div class="water-unit">ml / 2000ml</div>
+                                    <div class="water-unit" id="waterUnit">ml / 2000ml</div>
+                                    <div class="water-percentage" id="waterPercentage">0%</div>
                                 </div>
                             </div>
                         </div>
@@ -178,6 +186,7 @@
                                     <button onclick="addWaterCup(750)" class="btn btn-quick">750ml</button>
                                     <button onclick="addWaterCup(1000)" class="btn btn-quick">1L</button>
                                 </div>
+                                <button onclick="openCustomizeCupsModal()" class="btn btn-control" style="width: 100%; margin-top: 10px;">⚙️ Customizar Copos</button>
                             </div>
                         </div>
 
@@ -259,8 +268,93 @@
                         <div class="empty-state">Adicione amigos para ver o ranking</div>
                     </div>
                 </div>
+
+                <!-- Challenges Section -->
+                <div class="challenges-section">
+                    <div class="challenges-header">
+                        <h3><i class="fas fa-fire"></i> 🔥 Desafios</h3>
+                        <button onclick="openCreateChallengeModal()" class="btn btn-primary" style="padding: 8px 16px; font-size: 14px;">+ Novo Desafio</button>
+                    </div>
+
+                    <!-- My Challenges -->
+                    <div class="my-challenges">
+                        <h4>Desafios Criados por Mim</h4>
+                        <div id="myChallengesContainer" class="challenges-cards">
+                            <div class="empty-state">Nenhum desafio criado ainda</div>
+                        </div>
+                    </div>
+
+                    <!-- Received Challenges -->
+                    <div class="received-challenges">
+                        <h4>Desafios Recebidos</h4>
+                        <div id="receivedChallengesContainer" class="challenges-cards">
+                            <div class="empty-state">Nenhum desafio recebido ainda</div>
+                        </div>
+                    </div>
+                </div>
             </main>
         </section>
+
+        <!-- Create Challenge Modal -->
+        <div id="createChallengeModal" class="modal" style="display: none;">
+            <div class="modal-content rest-day-modal">
+                <div class="modal-header">
+                    <h2>Criar Novo Desafio 🔥</h2>
+                    <button class="close-btn" onclick="closeCreateChallengeModal()">&times;</button>
+                </div>
+                <div class="rest-day-body">
+                    <div style="margin-bottom: 20px;">
+                        <label style="font-weight: 600; display: block; margin-bottom: 8px;">Escolha um amigo:</label>
+                        <select id="challengeFriendSelect" class="input-field" style="width: 100%; padding: 10px; border: 2px solid #f0f0f0; border-radius: 10px; font-size: 16px;">
+                            <option value="">Selecione um amigo...</option>
+                        </select>
+                    </div>
+
+                    <div style="margin-bottom: 20px;">
+                        <label style="font-weight: 600; display: block; margin-bottom: 8px;">Tipo de Desafio:</label>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <button id="challengeTypePersonal" onclick="setChallengeType('personal')" class="challenge-type-btn" style="padding: 12px; border: 2px solid var(--primary); background: rgba(102, 126, 234, 0.1); border-radius: 10px; font-weight: 600; color: var(--text-color); cursor: pointer; transition: all 0.3s;">
+                                📝 Personalizado
+                            </button>
+                            <button id="challengeTypeWorkout" onclick="setChallengeType('workout')" class="challenge-type-btn" style="padding: 12px; border: 2px solid #ddd; background: white; border-radius: 10px; font-weight: 600; color: var(--text-color); cursor: pointer; transition: all 0.3s;">
+                                💪 Treino
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Personalizado Fields -->
+                    <div id="personalChallengeFields">
+                        <div style="margin-bottom: 20px;">
+                            <label style="font-weight: 600; display: block; margin-bottom: 8px;">Título do Desafio:</label>
+                            <input type="text" id="challengeTitle" placeholder="Ex: Ler um livro" class="input-field" style="width: 100%; padding: 10px; border: 2px solid #f0f0f0; border-radius: 10px; font-size: 16px;">
+                        </div>
+
+                        <div style="margin-bottom: 20px;">
+                            <label style="font-weight: 600; display: block; margin-bottom: 8px;">Descrição:</label>
+                            <textarea id="challengeDescription" placeholder="Descreva o desafio..." class="input-field" style="width: 100%; padding: 10px; border: 2px solid #f0f0f0; border-radius: 10px; font-size: 16px; min-height: 80px;"></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Workout Fields -->
+                    <div id="workoutChallengeFields" style="display: none;">
+                        <div style="margin-bottom: 20px;">
+                            <label style="font-weight: 600; display: block; margin-bottom: 8px;">Quantos dias de treino? 💪</label>
+                            <input type="number" id="workoutDaysRequired" placeholder="Ex: 10" class="input-field" style="width: 100%; padding: 10px; border: 2px solid #f0f0f0; border-radius: 10px; font-size: 16px;" min="1" max="30" value="10">
+                            <p style="font-size: 12px; color: #999; margin-top: 8px;">O desafio verificará os dias com treino marcado no calendário da pessoa</p>
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom: 20px;">
+                        <label style="font-weight: 600; display: block; margin-bottom: 8px;">Duração do Desafio (dias):</label>
+                        <input type="number" id="challengeDuration" placeholder="Ex: 30" class="input-field" style="width: 100%; padding: 10px; border: 2px solid #f0f0f0; border-radius: 10px; font-size: 16px;" min="1" max="90" value="30">
+                        <p style="font-size: 12px; color: #999; margin-top: 8px;">Tempo máximo para completar o desafio</p>
+                    </div>
+
+                    <button class="btn btn-primary" onclick="createChallenge()" style="width: 100%; margin-bottom: 10px;">Enviar Desafio 🚀</button>
+                    <button class="btn btn-secondary" onclick="closeCreateChallengeModal()" style="width: 100%;">Cancelar</button>
+                </div>
+            </div>
+        </div>
 
         <!-- Themes Tab -->
         <section id="themesTab" class="tab-content" style="display: none;" aria-label="Personalizador de Temas">
@@ -463,17 +557,7 @@
                         </div>
                     </div>
                     <div class="profile-rest-day">
-                        <div class="rest-day-display">
-                            <h3>Dia de Descanso 🛌</h3>
-                            <div class="rest-day-info-box">
-                                <span id="profileRestDay">-</span>
-                                <button onclick="editRestDay()" class="btn btn-secondary" style="margin-left: 10px; padding: 8px 16px; font-size: 12px;">Alterar</button>
-                            </div>
-                        </div>
-                        <div style="margin-top: 15px; display: flex; align-items: center; gap: 12px;">
-                            <label for="restDayColor" style="font-weight: 600; color: var(--text-color); font-size: 13px;">Cor do Dia de Descanso:</label>
-                            <input type="color" id="restDayColor" value="#B3E5FC" onchange="changeRestDayColor(this.value)" style="width: 50px; height: 40px; border: 2px solid var(--border); border-radius: 8px; cursor: pointer;">
-                        </div>
+
                     </div>
                     <div class="profile-achievements">
                         <h3>🏆 Conquistas</h3>
@@ -537,14 +621,123 @@
     <div id="editRestDayModal" class="modal" style="display: none;">
         <div class="modal-content rest-day-modal">
             <div class="modal-header">
-                <h2>Gerenciar Dias de Descanso 🛌</h2>
+                <h2>Gerenciar Dia de Descanso 🛌</h2>
                 <button class="close-btn" onclick="closeEditRestDay()">&times;</button>
             </div>
             <div class="rest-day-body">
-                <p class="rest-day-subtitle">Clique em um dia para marcar/desmarcar como descanso</p>
+                <p class="rest-day-subtitle">Qual é seu dia de descanso preferido?</p>
                 <div class="weekdays-selector" id="editRestDaySelector"></div>
+                <p class="rest-day-info" style="margin-top: 20px; margin-bottom: 15px; font-weight: 600;">Escolha a cor para destacar os dias de descanso:</p>
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 15px 0; margin-bottom: 20px;" id="colorButtonsContainer">
+                    <button id="color-E3F2FD" onclick="setRestDayColor('#E3F2FD', this)" style="width: 100%; padding: 12px; background: #E3F2FD; border: 2px solid #ddd; border-radius: 8px; cursor: pointer; transition: all 0.3s;" title="Azul Claro">
+                        <div style="font-weight: 600; color: #1976D2; margin-top: 2px; font-size: 11px;">Azul</div>
+                    </button>
+                    <button id="color-FCE4EC" onclick="setRestDayColor('#FCE4EC', this)" style="width: 100%; padding: 12px; background: #FCE4EC; border: 2px solid #ddd; border-radius: 8px; cursor: pointer; transition: all 0.3s;" title="Rosa Claro">
+                        <div style="font-weight: 600; color: #C2185B; margin-top: 2px; font-size: 11px;">Rosa</div>
+                    </button>
+                    <button id="color-F3E5F5" onclick="setRestDayColor('#F3E5F5', this)" style="width: 100%; padding: 12px; background: #F3E5F5; border: 2px solid #ddd; border-radius: 8px; cursor: pointer; transition: all 0.3s;" title="Roxo Claro">
+                        <div style="font-weight: 600; color: #7B1FA2; margin-top: 2px; font-size: 11px;">Roxo</div>
+                    </button>
+                    <button id="color-E0F2F1" onclick="setRestDayColor('#E0F2F1', this)" style="width: 100%; padding: 12px; background: #E0F2F1; border: 2px solid #ddd; border-radius: 8px; cursor: pointer; transition: all 0.3s;" title="Teal Claro">
+                        <div style="font-weight: 600; color: #00897B; margin-top: 2px; font-size: 11px;">Teal</div>
+                    </button>
+                    <button id="color-FFF3E0" onclick="setRestDayColor('#FFF3E0', this)" style="width: 100%; padding: 12px; background: #FFF3E0; border: 2px solid #ddd; border-radius: 8px; cursor: pointer; transition: all 0.3s;" title="Laranja Claro">
+                        <div style="font-weight: 600; color: #E65100; margin-top: 2px; font-size: 11px;">Laranja</div>
+                    </button>
+                    <button id="color-F1F8E9" onclick="setRestDayColor('#F1F8E9', this)" style="width: 100%; padding: 12px; background: #F1F8E9; border: 2px solid #ddd; border-radius: 8px; cursor: pointer; transition: all 0.3s;" title="Verde Claro">
+                        <div style="font-weight: 600; color: #558B2F; margin-top: 2px; font-size: 11px;">Verde</div>
+                    </button>
+                    <button id="color-Lavanda" onclick="setRestDayColor('#F3E5F5', this)" style="width: 100%; padding: 12px; background: #F3E5F5; border: 2px solid #ddd; border-radius: 8px; cursor: pointer; transition: all 0.3s;" title="Lavanda">
+                        <div style="font-weight: 600; color: #512DA8; margin-top: 2px; font-size: 11px;">Lavanda</div>
+                    </button>
+                    <button id="color-FFF9C4" onclick="setRestDayColor('#FFF9C4', this)" style="width: 100%; padding: 12px; background: #FFF9C4; border: 2px solid #ddd; border-radius: 8px; cursor: pointer; transition: all 0.3s;" title="Amarelo Claro">
+                        <div style="font-weight: 600; color: #F57F17; margin-top: 2px; font-size: 11px;">Amarelo</div>
+                    </button>
+                </div>
                 <p class="rest-day-info">Suas seleções são salvas automaticamente</p>
                 <button class="btn btn-primary" onclick="closeEditRestDay()" style="margin-top: 20px;">Fechar ✓</button>
+            </div>
+        </div>
+    </div>
+
+
+
+    <!-- Modal Customizar Copos -->
+    <div id="customizeCupsModal" class="modal" style="display: none;">
+        <div class="modal-content rest-day-modal">
+            <div class="modal-header">
+                <h2>Customizar Copos 💧</h2>
+                <button class="close-btn" onclick="closeCustomizeCupsModal()">&times;</button>
+            </div>
+            <div class="rest-day-body">
+                <p class="rest-day-subtitle">Edite ou adicione novos tamanhos de copos</p>
+                
+                <div id="cupsList" style="margin-bottom: 20px;"></div>
+                
+                <div style="margin-top: 20px; padding: 20px; background: rgba(255, 179, 217, 0.1); border-radius: 12px;">
+                    <label style="font-weight: 600; color: var(--text-color); display: block; margin-bottom: 10px;">Adicionar novo copo:</label>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="number" id="newCupValue" placeholder="ml" min="50" max="2000" style="flex: 1; padding: 10px; border: 2px solid #f0f0f0; border-radius: 10px; font-size: 14px;">
+                        <button onclick="addNewCup()" class="btn btn-primary" style="padding: 10px 20px;">Adicionar</button>
+                    </div>
+                </div>
+                
+                <button class="btn btn-primary" onclick="closeCustomizeCupsModal()" style="margin-top: 20px; width: 100%;">Fechar ✓</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Definir Meta de Água -->
+    <div id="waterGoalModal" class="modal" style="display: none;">
+        <div class="modal-content rest-day-modal">
+            <div class="modal-header">
+                <h2>Definir Meta Diária 🎯</h2>
+                <button class="close-btn" onclick="closeWaterGoalModal()">&times;</button>
+            </div>
+            <div class="rest-day-body">
+                <p class="rest-day-subtitle">Escolha sua meta de consumo de água diário</p>
+                
+                <!-- Meta Recomendada Automática -->
+                <div id="recommendedWaterContainer" style="display: none; margin-bottom: 20px; padding: 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; color: white; text-align: center;">
+                    <p style="font-size: 12px; opacity: 0.9; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: 1px;">💧 Meta Inteligente</p>
+                    <p style="font-size: 28px; font-weight: 900; margin: 0; line-height: 1;">
+                        <span id="recommendedWaterValue">2000</span><span style="font-size: 18px;">ml</span>
+                    </p>
+                    <p style="font-size: 11px; opacity: 0.85; margin: 6px 0 0 0;">Baseado em seu peso corporal (35ml × kg)</p>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 25px;">
+                    <button onclick="setWaterGoal(1000)" class="water-goal-btn" data-goal="1000">
+                        <span class="goal-value">1L</span>
+                        <span class="goal-desc">Mínimo</span>
+                    </button>
+                    <button onclick="setWaterGoal(1500)" class="water-goal-btn" data-goal="1500">
+                        <span class="goal-value">1,5L</span>
+                        <span class="goal-desc">Baixo</span>
+                    </button>
+                    <button onclick="setWaterGoal(2000)" class="water-goal-btn" data-goal="2000">
+                        <span class="goal-value">2L</span>
+                        <span class="goal-desc">Recomendado</span>
+                    </button>
+                    <button onclick="setWaterGoal(2500)" class="water-goal-btn" data-goal="2500">
+                        <span class="goal-value">2,5L</span>
+                        <span class="goal-desc">Alto</span>
+                    </button>
+                    <button onclick="setWaterGoal(3000)" class="water-goal-btn" data-goal="3000">
+                        <span class="goal-value">3L</span>
+                        <span class="goal-desc">Muito Alto</span>
+                    </button>
+                </div>
+                
+                <div style="margin-bottom: 20px; padding: 20px; background: rgba(255, 179, 217, 0.1); border-radius: 12px;">
+                    <label style="font-weight: 600; color: var(--text-color); display: block; margin-bottom: 10px;">Ou defina um valor customizado:</label>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="number" id="customWaterGoal" placeholder="ml" min="250" max="5000" style="flex: 1; padding: 12px 14px; border: 2px solid #f0f0f0; border-radius: 10px; font-size: 16px; font-weight: 600;">
+                        <button onclick="setCustomWaterGoal()" class="btn btn-primary" style="padding: 12px 20px;">Confirmar</button>
+                    </div>
+                </div>
+                
+                <button class="btn btn-primary" onclick="closeWaterGoalModal()" style="width: 100%;">Fechar ✓</button>
             </div>
         </div>
     </div>
