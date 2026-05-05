@@ -8,6 +8,28 @@ let selectedRestDay = null;
 let currentGender = 'female';
 let activeTheme = localStorage.getItem('activeTheme') || '1';
 let lastCheckedDate = localStorage.getItem('lastCheckedDate');
+let customCups = []; // Array para armazenar copos customizados
+let waterGoal = 2000; // Meta de água diária em ml
+let currentChallengeType = 'personal'; // Tipo de desafio: 'personal' ou 'workout'
+
+// ============ HELPER FUNCTION FOR LOCAL DATE ============
+function getLocalDateString() {
+    // Usar timezone de Brasília (UTC-3)
+    const now = new Date();
+    const formatter = new Intl.DateTimeFormat('pt-BR', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        timeZone: 'America/Sao_Paulo'
+    });
+    
+    const parts = formatter.formatToParts(now);
+    const year = parts.find(p => p.type === 'year').value;
+    const month = parts.find(p => p.type === 'month').value;
+    const day = parts.find(p => p.type === 'day').value;
+    
+    return `${year}-${month}-${day}`;
+}
 
 // ============ INITIALIZATION ============
 document.addEventListener('DOMContentLoaded', () => {
@@ -27,9 +49,19 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Close modal when clicking outside
     window.addEventListener('click', (e) => {
-        const modal = document.getElementById('profileModal');
-        if (e.target === modal) {
+        const profileModal = document.getElementById('profileModal');
+        if (e.target === profileModal) {
             closeProfile();
+        }
+        
+        const customizeCupsModal = document.getElementById('customizeCupsModal');
+        if (e.target === customizeCupsModal) {
+            closeCustomizeCupsModal();
+        }
+        
+        const waterGoalModal = document.getElementById('waterGoalModal');
+        if (e.target === waterGoalModal) {
+            closeWaterGoalModal();
         }
     });
     
@@ -198,6 +230,8 @@ function showMainApp() {
     document.getElementById('signupPage').style.display = 'none';
     document.getElementById('mainApp').style.display = 'block';
     
+    updateWaterQuickButtons();
+    updateWaterGoalDisplay();
     switchTab('calendar');
     updateTodayDate();
 }
@@ -253,7 +287,7 @@ function renderCalendar() {
     
     // Current month days
     const today = new Date();
-    const todayString = today.toISOString().split('T')[0];
+    const todayString = getLocalDateString();
     const workouts = getCheckedWorkouts();
     const missedDays = getMissedDays();
     
@@ -330,6 +364,10 @@ function toggleWorkoutDay(date) {
     }
     
     renderCalendar();
+    // Atualizar desafios de treino se a aba estiver visível
+    if (document.getElementById('receivedChallengesContainer')) {
+        renderChallenges();
+    }
 }
 
 function getCheckedWorkouts() {
@@ -343,7 +381,8 @@ function updateCalendarStats() {
     
     const workouts = getCheckedWorkouts();
     const monthWorkouts = workouts.filter(date => {
-        const d = new Date(date);
+        const [year, month, day] = date.split('-');
+        const d = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
         return d.getFullYear() === year && d.getMonth() === month;
     });
     
@@ -362,7 +401,10 @@ function calculateStreak() {
     for (let i = 0; i < 365; i++) {
         const date = new Date(today);
         date.setDate(date.getDate() - i);
-        const dateStr = date.toISOString().split('T')[0];
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const dateStr = `${year}-${month}-${day}`;
         
         if (workouts.includes(dateStr)) {
             streak++;
@@ -376,14 +418,17 @@ function calculateStreak() {
 
 // ============ DAY CHANGE VERIFICATION ============
 function checkDayChange() {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateString();
     const previousDate = localStorage.getItem(`lastCheckedDate_${currentUser.id}`);
     
     // Se não há data anterior ou a data mudou
     if (!previousDate || previousDate !== today) {
         const yesterday = new Date();
         yesterday.setDate(yesterday.getDate() - 1);
-        const yesterdayString = yesterday.toISOString().split('T')[0];
+        const year = yesterday.getFullYear();
+        const month = String(yesterday.getMonth() + 1).padStart(2, '0');
+        const day = String(yesterday.getDate()).padStart(2, '0');
+        const yesterdayString = `${year}-${month}-${day}`;
         
         // Se é a primeira vez, apenas guardar a data
         if (!previousDate) {
@@ -427,7 +472,7 @@ function updateTodayDate() {
 }
 
 function getTodayWater() {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateString();
     const records = getWaterRecords();
     return records.filter(r => r.date === today);
 }
@@ -447,6 +492,8 @@ function saveWaterRecords() {
 
 function loadFromStorage() {
     waterRecords = getWaterRecords();
+    loadCustomCups();
+    loadWaterGoal();
 }
 
 function addWaterCup(ml) {
@@ -475,7 +522,7 @@ function addCustomWater() {
 }
 
 function addWater(amount) {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateString();
     const now = new Date();
     const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
     
@@ -494,7 +541,7 @@ function addWater(amount) {
 
 function resetWaterToday() {
     if (confirm('Resetar água de hoje?')) {
-        const today = new Date().toISOString().split('T')[0];
+        const today = getLocalDateString();
         waterRecords = waterRecords.filter(r => r.date !== today);
         saveWaterRecords();
         renderWaterTab();
@@ -511,15 +558,17 @@ function deleteWaterRecord(id) {
 
 function renderWaterTab() {
     const todayAmount = getTodayWaterAmount();
-    const percentage = (todayAmount / 2000) * 100;
+    const percentage = (todayAmount / waterGoal) * 100;
     const circumference = 2 * Math.PI * 90;
     const strokeDashoffset = circumference - (percentage / 100) * circumference;
     
     document.getElementById('waterAmount').textContent = todayAmount;
+    document.getElementById('waterUnit').textContent = `ml / ${waterGoal}ml`;
+    document.getElementById('waterPercentage').textContent = `${Math.min(Math.round(percentage), 100)}%`;
     document.getElementById('progressCircle').style.strokeDashoffset = strokeDashoffset + 'px';
     
-    // Celebration when reaching 2000ml
-    if (todayAmount >= 2000 && todayAmount < 2250) {
+    // Celebration when reaching the goal
+    if (todayAmount >= waterGoal && todayAmount < waterGoal + 250) {
         createConfetti();
         document.getElementById('waterAmount').style.color = '#FFD93D';
         document.getElementById('waterAmount').style.animation = 'pulse 0.5s ease-out';
@@ -527,7 +576,9 @@ function renderWaterTab() {
         document.getElementById('waterAmount').style.color = 'var(--water-blue)';
     }
     
+    updateWaterGoalDisplay();
     renderWaterRecords();
+    updateWaterQuickButtons();
 }
 
 function renderWaterRecords() {
@@ -539,14 +590,19 @@ function renderWaterRecords() {
         return;
     }
     
-    tbody.innerHTML = records.map(r => `
+    tbody.innerHTML = records.map(r => {
+        const [dateYear, dateMonth, dateDay] = r.date.split('-');
+        const dateObj = new Date(parseInt(dateYear), parseInt(dateMonth) - 1, parseInt(dateDay));
+        const formattedDate = dateObj.toLocaleDateString('pt-BR');
+        return `
         <tr>
-            <td>${new Date(r.date).toLocaleDateString('pt-BR')}</td>
+            <td>${formattedDate}</td>
             <td><strong>${r.amount}ml</strong></td>
             <td>${r.time}</td>
             <td><button class="delete-btn" onclick="deleteWaterRecord(${r.id})">Deletar</button></td>
         </tr>
-    `).reverse().join('');
+    `;
+    }).reverse().join('');
 }
 
 function filterRecords(type) {
@@ -572,7 +628,10 @@ function renderWaterChart() {
     for (let i = 6; i >= 0; i--) {
         const date = new Date();
         date.setDate(date.getDate() - i);
-        days.push(date.toISOString().split('T')[0]);
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        days.push(`${year}-${month}-${day}`);
     }
     
     let html = '';
@@ -582,7 +641,9 @@ function renderWaterChart() {
         const dayRecords = records.filter(r => r.date === day);
         const total = dayRecords.reduce((sum, r) => sum + r.amount, 0);
         const height = (total / maxAmount) * 100;
-        const dayName = new Date(day).toLocaleDateString('pt-BR', { weekday: 'short' });
+        const [dayYear, dayMonth, dayDay] = day.split('-');
+        const dayDate = new Date(parseInt(dayYear), parseInt(dayMonth) - 1, parseInt(dayDay));
+        const dayName = dayDate.toLocaleDateString('pt-BR', { weekday: 'short' });
         
         html += `
             <div class="chart-bar" style="height: ${Math.max(height, 5)}%;" title="${total}ml">
@@ -639,6 +700,27 @@ function changeRestDayColor(color) {
     renderCalendar();
 }
 
+function setRestDayColor(color, buttonElement) {
+    changeRestDayColor(color);
+    
+    // Remove seleção de todos os botões
+    const allColorButtons = document.querySelectorAll('#colorButtonsContainer button');
+    allColorButtons.forEach(btn => {
+        btn.style.borderWidth = '2px';
+        btn.style.borderColor = '#ddd';
+        btn.style.boxShadow = 'none';
+        btn.style.transform = 'scale(1)';
+    });
+    
+    // Adiciona efeito ao botão clicado
+    if (buttonElement) {
+        buttonElement.style.borderWidth = '4px';
+        buttonElement.style.borderColor = '#667eea';
+        buttonElement.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.3)';
+        buttonElement.style.transform = 'scale(1.05)';
+    }
+}
+
 // Obter próximo dia de descanso recomendado
 function getNextRecommendedRestDay() {
     const today = new Date();
@@ -649,7 +731,10 @@ function getNextRecommendedRestDay() {
         const date = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i);
         if (date.getMonth() !== today.getMonth()) break; // Parou de olhar no próximo mês
         
-        const dateString = date.toISOString().split('T')[0];
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const dateString = `${year}-${month}-${day}`;
         if (!restDays.includes(dateString)) {
             return dateString;
         }
@@ -658,7 +743,10 @@ function getNextRecommendedRestDay() {
     // Se não encontrou, retorna o próximo dia
     const nextDay = new Date(today);
     nextDay.setDate(nextDay.getDate() + 1);
-    return nextDay.toISOString().split('T')[0];
+    const year = nextDay.getFullYear();
+    const month = String(nextDay.getMonth() + 1).padStart(2, '0');
+    const day = String(nextDay.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
 }
 
 function editRestDay() {
@@ -666,7 +754,7 @@ function editRestDay() {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
     const today = new Date();
-    const todayString = today.toISOString().split('T')[0];
+    const todayString = getLocalDateString();
     
     // Clear previous selector
     const selector = document.getElementById('editRestDaySelector');
@@ -701,6 +789,27 @@ function editRestDay() {
     // Close profile modal and open edit modal
     document.getElementById('profileModal').style.display = 'none';
     editModal.style.display = 'flex';
+    
+    // Highlight the currently selected rest day color
+    setTimeout(() => {
+        const currentColor = getRestDayColor();
+        const allColorButtons = document.querySelectorAll('#colorButtonsContainer button');
+        allColorButtons.forEach(btn => {
+            const btnColor = btn.style.background || '';
+            if (btnColor.includes(currentColor) || 
+                (currentColor === '#B3E5FC' && btn.style.background.includes('E3F2FD'))) {
+                btn.style.borderWidth = '4px';
+                btn.style.borderColor = '#667eea';
+                btn.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.3)';
+                btn.style.transform = 'scale(1.05)';
+            } else {
+                btn.style.borderWidth = '2px';
+                btn.style.borderColor = '#ddd';
+                btn.style.boxShadow = 'none';
+                btn.style.transform = 'scale(1)';
+            }
+        });
+    }, 0);
 }
 
 function selectEditRestDay(dateString, buttonElement) {
@@ -772,7 +881,7 @@ function addFriend() {
         id: Date.now(),
         email: email,
         name: email.split('@')[0],
-        addedDate: new Date().toISOString().split('T')[0]
+        addedDate: getLocalDateString()
     };
     
     friends.push(newFriend);
@@ -823,6 +932,7 @@ function renderFriendsTab() {
     }
     
     renderLeaderboard();
+    renderChallenges();
 }
 
 function renderLeaderboard() {
@@ -859,6 +969,330 @@ function renderLeaderboard() {
             </div>
         `;
     }).join('');
+}
+
+// ============ CHALLENGES FUNCTIONS ============
+function getChallenges() {
+    const challenges = localStorage.getItem(`challenges_${currentUser.id}`);
+    return challenges ? JSON.parse(challenges) : [];
+}
+
+function saveChallenges(challenges) {
+    localStorage.setItem(`challenges_${currentUser.id}`, JSON.stringify(challenges));
+}
+
+function openCreateChallengeModal() {
+    const modal = document.getElementById('createChallengeModal');
+    modal.style.display = 'flex';
+    currentChallengeType = 'personal'; // Reset tipo de desafio
+    setChallengeType('personal');
+    
+    // Populate friend select
+    const friends = getFriends();
+    const friendSelect = document.getElementById('challengeFriendSelect');
+    
+    friendSelect.innerHTML = '<option value="">Selecione um amigo...</option>';
+    friends.forEach(friend => {
+        const option = document.createElement('option');
+        option.value = friend.id;
+        option.textContent = friend.name;
+        friendSelect.appendChild(option);
+    });
+}
+
+function setChallengeType(type) {
+    currentChallengeType = type;
+    
+    const personalBtn = document.getElementById('challengeTypePersonal');
+    const workoutBtn = document.getElementById('challengeTypeWorkout');
+    const personalFields = document.getElementById('personalChallengeFields');
+    const workoutFields = document.getElementById('workoutChallengeFields');
+    
+    if (type === 'personal') {
+        // Estilo ativo para Personalizado
+        personalBtn.style.borderColor = '#667eea';
+        personalBtn.style.background = 'rgba(102, 126, 234, 0.1)';
+        personalBtn.style.boxShadow = '0 2px 8px rgba(102, 126, 234, 0.2)';
+        
+        // Estilo inativo para Treino
+        workoutBtn.style.borderColor = '#ddd';
+        workoutBtn.style.background = 'white';
+        workoutBtn.style.boxShadow = 'none';
+        
+        personalFields.style.display = 'block';
+        workoutFields.style.display = 'none';
+    } else if (type === 'workout') {
+        // Estilo inativo para Personalizado
+        personalBtn.style.borderColor = '#ddd';
+        personalBtn.style.background = 'white';
+        personalBtn.style.boxShadow = 'none';
+        
+        // Estilo ativo para Treino
+        workoutBtn.style.borderColor = '#667eea';
+        workoutBtn.style.background = 'rgba(102, 126, 234, 0.1)';
+        workoutBtn.style.boxShadow = '0 2px 8px rgba(102, 126, 234, 0.2)';
+        
+        personalFields.style.display = 'none';
+        workoutFields.style.display = 'block';
+    }
+}
+
+function closeCreateChallengeModal() {
+    const modal = document.getElementById('createChallengeModal');
+    modal.style.display = 'none';
+    
+    // Clear form
+    document.getElementById('challengeFriendSelect').value = '';
+    document.getElementById('challengeTitle').value = '';
+    document.getElementById('challengeDescription').value = '';
+    document.getElementById('challengeDuration').value = '30';
+    document.getElementById('workoutDaysRequired').value = '10';
+    currentChallengeType = 'personal';
+}
+
+function createChallenge() {
+    const friendId = parseInt(document.getElementById('challengeFriendSelect').value);
+    const duration = parseInt(document.getElementById('challengeDuration').value);
+    
+    if (!friendId) {
+        alert('Por favor, selecione um amigo!');
+        return;
+    }
+    
+    if (duration < 1 || duration > 90) {
+        alert('A duração deve estar entre 1 e 90 dias!');
+        return;
+    }
+    
+    // Get friend info
+    const friends = getFriends();
+    const friend = friends.find(f => f.id === friendId);
+    
+    if (!friend) {
+        alert('Amigo não encontrado!');
+        return;
+    }
+    
+    // Create challenge based on type
+    let newChallenge;
+    
+    if (currentChallengeType === 'personal') {
+        const title = document.getElementById('challengeTitle').value.trim();
+        const description = document.getElementById('challengeDescription').value.trim();
+        
+        if (!title) {
+            alert('Por favor, insira um título para o desafio!');
+            return;
+        }
+        
+        newChallenge = {
+            id: Date.now(),
+            type: 'personal',
+            createdBy: currentUser,
+            sentTo: friend,
+            title: title,
+            description: description,
+            duration: duration,
+            startDate: getLocalDateString(),
+            status: 'pending',
+            createdDate: getLocalDateString()
+        };
+    } else if (currentChallengeType === 'workout') {
+        const workoutDays = parseInt(document.getElementById('workoutDaysRequired').value);
+        
+        if (workoutDays < 1 || workoutDays > 30) {
+            alert('Os dias de treino devem estar entre 1 e 30!');
+            return;
+        }
+        
+        newChallenge = {
+            id: Date.now(),
+            type: 'workout',
+            createdBy: currentUser,
+            sentTo: friend,
+            title: `Treinar ${workoutDays} dias 💪`,
+            description: `Complete ${workoutDays} treinos marcando no calendário`,
+            workoutDaysRequired: workoutDays,
+            duration: duration,
+            startDate: getLocalDateString(),
+            status: 'pending',
+            createdDate: getLocalDateString()
+        };
+    }
+    
+    // Save to creator's challenges
+    const challenges = getChallenges();
+    challenges.push(newChallenge);
+    saveChallenges(challenges);
+    
+    // Save to friend's received challenges
+    const friendReceivedKey = `challengesReceived_${friend.email}`;
+    const receivedChallenges = localStorage.getItem(friendReceivedKey);
+    const friendChallenges = receivedChallenges ? JSON.parse(receivedChallenges) : [];
+    friendChallenges.push(newChallenge);
+    localStorage.setItem(friendReceivedKey, JSON.stringify(friendChallenges));
+    
+    alert(`🔥 Desafio "${newChallenge.title}" enviado para ${friend.name}!`);
+    closeCreateChallengeModal();
+    renderChallenges();
+}
+
+function acceptChallenge(challengeId) {
+    const friendReceivedKey = `challengesReceived_${currentUser.email}`;
+    const receivedChallenges = localStorage.getItem(friendReceivedKey);
+    const challenges = receivedChallenges ? JSON.parse(receivedChallenges) : [];
+    
+    const challenge = challenges.find(c => c.id === challengeId);
+    if (challenge) {
+        challenge.status = 'accepted';
+        localStorage.setItem(friendReceivedKey, JSON.stringify(challenges));
+        alert(`✅ Você aceitou o desafio: "${challenge.title}"!`);
+        renderChallenges();
+    }
+}
+
+function rejectChallenge(challengeId) {
+    const friendReceivedKey = `challengesReceived_${currentUser.email}`;
+    const receivedChallenges = localStorage.getItem(friendReceivedKey);
+    const challenges = receivedChallenges ? JSON.parse(receivedChallenges) : [];
+    
+    const filteredChallenges = challenges.filter(c => c.id !== challengeId);
+    localStorage.setItem(friendReceivedKey, JSON.stringify(filteredChallenges));
+    alert('❌ Desafio recusado.');
+    renderChallenges();
+}
+
+function getWorkoutProgressForChallenge(challenge) {
+    // Calcula quantos dias de treino o usuário completou desde o início do desafio
+    const workouts = getCheckedWorkouts(); // Array de datas de treino em formato YYYY-MM-DD
+    
+    if (!workouts || workouts.length === 0) {
+        return { current: 0, required: challenge.workoutDaysRequired };
+    }
+    
+    // Converter startDate para comparação
+    const [startYear, startMonth, startDay] = challenge.startDate.split('-');
+    const startDateObj = new Date(parseInt(startYear), parseInt(startMonth) - 1, parseInt(startDay));
+    
+    // Contar treinos após a data de início do desafio
+    const treinesCount = workouts.filter(date => {
+        const [year, month, day] = date.split('-');
+        const workoutDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+        return workoutDate >= startDateObj;
+    }).length;
+    
+    return {
+        current: Math.min(treinesCount, challenge.workoutDaysRequired),
+        required: challenge.workoutDaysRequired,
+        percentage: Math.min((treinesCount / challenge.workoutDaysRequired) * 100, 100)
+    };
+}
+
+function renderChallenges() {
+    // My challenges (created by me)
+    const myChallenges = getChallenges();
+    const myChallengesContainer = document.getElementById('myChallengesContainer');
+    
+    if (myChallenges.length === 0) {
+        myChallengesContainer.innerHTML = '<div class="empty-state">Nenhum desafio criado ainda</div>';
+    } else {
+        myChallengesContainer.innerHTML = myChallenges.map(challenge => {
+            let progressHTML = '';
+            if (challenge.type === 'workout') {
+                const progress = getWorkoutProgressForChallenge(challenge);
+                progressHTML = `
+                    <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(0, 0, 0, 0.05);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <span style="font-size: 12px; color: #999; text-transform: uppercase; letter-spacing: 0.5px;">💪 Progresso</span>
+                            <span style="font-size: 14px; font-weight: 700; color: var(--primary);">${progress.current}/${progress.required} dias</span>
+                        </div>
+                        <div style="width: 100%; height: 8px; background: rgba(0,0,0,0.1); border-radius: 4px; overflow: hidden;">
+                            <div style="width: ${progress.percentage}%; height: 100%; background: linear-gradient(90deg, #43e97b 0%, #38f9d7 100%); transition: width 0.3s;"></div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                progressHTML = `
+                    <div style="display: flex; align-items: center; gap: 8px; margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(0, 0, 0, 0.05);">
+                        <span style="font-size: 12px; color: #999; text-transform: uppercase; letter-spacing: 0.5px;">⏱️ Duração:</span>
+                        <span style="font-size: 16px; font-weight: 700; color: var(--primary);">${challenge.duration}d</span>
+                    </div>
+                `;
+            }
+            
+            return `
+                <div class="challenge-card">
+                    <div class="challenge-badge ${challenge.status}">${getStatusLabel(challenge.status)}</div>
+                    <div class="challenge-title">${challenge.title}</div>
+                    <div class="challenge-friend">Para: ${challenge.sentTo.name}</div>
+                    <div class="challenge-description">${challenge.description}</div>
+                    ${progressHTML}
+                </div>
+            `;
+        }).join('');
+    }
+    
+    // Received challenges
+    const friendReceivedKey = `challengesReceived_${currentUser.email}`;
+    const receivedChallengesData = localStorage.getItem(friendReceivedKey);
+    const receivedChallenges = receivedChallengesData ? JSON.parse(receivedChallengesData) : [];
+    const receivedChallengesContainer = document.getElementById('receivedChallengesContainer');
+    
+    if (receivedChallenges.length === 0) {
+        receivedChallengesContainer.innerHTML = '<div class="empty-state">Nenhum desafio recebido ainda</div>';
+    } else {
+        receivedChallengesContainer.innerHTML = receivedChallenges.map(challenge => {
+            let progressHTML = '';
+            if (challenge.type === 'workout') {
+                const progress = getWorkoutProgressForChallenge(challenge);
+                const isCompleted = progress.current >= progress.required;
+                progressHTML = `
+                    <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(0, 0, 0, 0.05);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <span style="font-size: 12px; color: #999; text-transform: uppercase; letter-spacing: 0.5px;">💪 Progresso</span>
+                            <span style="font-size: 14px; font-weight: 700; color: ${isCompleted ? '#43e97b' : 'var(--primary)'};">${progress.current}/${progress.required} dias ${isCompleted ? '✅' : ''}</span>
+                        </div>
+                        <div style="width: 100%; height: 8px; background: rgba(0,0,0,0.1); border-radius: 4px; overflow: hidden;">
+                            <div style="width: ${progress.percentage}%; height: 100%; background: linear-gradient(90deg, #43e97b 0%, #38f9d7 100%); transition: width 0.3s;"></div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                progressHTML = `
+                    <div style="display: flex; align-items: center; gap: 8px; margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(0, 0, 0, 0.05);">
+                        <span style="font-size: 12px; color: #999; text-transform: uppercase; letter-spacing: 0.5px;">⏱️ Duração:</span>
+                        <span style="font-size: 16px; font-weight: 700; color: var(--primary);">${challenge.duration}d</span>
+                    </div>
+                `;
+            }
+            
+            return `
+                <div class="challenge-card">
+                    <div class="challenge-badge ${challenge.status}">${getStatusLabel(challenge.status)}</div>
+                    <div class="challenge-title">${challenge.title}</div>
+                    <div class="challenge-friend">De: ${challenge.createdBy.name}</div>
+                    <div class="challenge-description">${challenge.description}</div>
+                    ${progressHTML}
+                    ${challenge.status === 'pending' ? `
+                        <div class="challenge-actions" style="margin-top: 15px;">
+                            <button class="challenge-accept" onclick="acceptChallenge(${challenge.id})">✅ Aceitar</button>
+                            <button class="challenge-reject" onclick="rejectChallenge(${challenge.id})">❌ Recusar</button>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }).join('');
+    }
+}
+
+function getStatusLabel(status) {
+    const labels = {
+        'pending': '⏳ Pendente',
+        'accepted': '✅ Aceito',
+        'completed': '🏆 Completo',
+        'rejected': '❌ Recusado'
+    };
+    return labels[status] || status;
 }
 
 // ============ STORAGE ============
@@ -903,23 +1337,6 @@ function showProfile() {
     document.getElementById('profileWorkouts').textContent = workouts.length;
     document.getElementById('profileWaterTotal').textContent = waterTotal;
     document.getElementById('profileStreak').textContent = streak;
-    
-    // Display rest days (próximo descanso ou lista)
-    const restDays = getRestDays();
-    const today = new Date().toISOString().split('T')[0];
-    const nextRestDay = restDays.filter(d => d > today).sort()[0];
-    
-    if (nextRestDay) {
-        const restDate = new Date(nextRestDay);
-        const formattedDate = restDate.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit' });
-        document.getElementById('profileRestDay').textContent = `Próximo: ${formattedDate}`;
-    } else {
-        document.getElementById('profileRestDay').textContent = 'Nenhum descanso programado';
-    }
-    
-    // Load rest day color
-    const restDayColor = getRestDayColor();
-    document.getElementById('restDayColor').value = restDayColor;
     
     // Generate achievements
     generateAchievements(workouts.length, parseFloat(waterTotal), streak);
@@ -1012,8 +1429,7 @@ function getTotalWater() {
 
 // ============ UTILITY FUNCTIONS ============
 function getTodayFormatted() {
-    const date = new Date();
-    return date.toISOString().split('T')[0];
+    return getLocalDateString();
 }
 
 // ============ CELEBRATORY EFFECTS ============
@@ -1027,7 +1443,7 @@ function celebrateAchievement() {
 }
 
 function addWater(amount) {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateString();
     const now = new Date();
     const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
     
@@ -1056,8 +1472,10 @@ function saveMeasurements() {
     const today = new Date();
     const monthKey = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0');
     
+    const weight = parseFloat(document.getElementById('weight').value) || 0;
+    
     const newMeasurement = {
-        weight: parseFloat(document.getElementById('weight').value) || 0,
+        weight: weight,
         height: parseFloat(document.getElementById('height').value) || 0,
         arm: parseFloat(document.getElementById('arm').value) || 0,
         chest: parseFloat(document.getElementById('chest').value) || 0,
@@ -1080,7 +1498,19 @@ function saveMeasurements() {
     document.getElementById('thigh').value = '';
     document.getElementById('calf').value = '';
     
-    alert('Medidas salvas com sucesso! 📏');
+    // Calcular meta de água recomendada: 35ml × peso corporal
+    if (weight > 0) {
+        const recommendedWaterGoal = Math.round(weight * 35);
+        const oldGoal = waterGoal;
+        
+        waterGoal = recommendedWaterGoal;
+        saveWaterGoal();
+        
+        alert(`Medidas salvas com sucesso! 📏\n\n💧 Meta de água recomendada atualizada:\n${recommendedWaterGoal}ml (${(recommendedWaterGoal / 1000).toFixed(2)}L)\n\nFórmula: 35ml × ${weight}kg = ${recommendedWaterGoal}ml`);
+    } else {
+        alert('Medidas salvas com sucesso! 📏');
+    }
+    
     renderMeasurementsTab();
 }
 
@@ -1492,4 +1922,206 @@ function createConfetti() {
     }
     
     animate();
+}
+
+// ============ CUSTOM CUPS FUNCTIONS ============
+function loadCustomCups() {
+    const cups = localStorage.getItem(`customCups_${currentUser.id}`);
+    customCups = cups ? JSON.parse(cups) : [
+        { id: 1, value: 250, label: 'Copo (250ml)' },
+        { id: 2, value: 500, label: '500ml' },
+        { id: 3, value: 750, label: '750ml' },
+        { id: 4, value: 1000, label: '1L' }
+    ];
+}
+
+function saveCustomCups() {
+    localStorage.setItem(`customCups_${currentUser.id}`, JSON.stringify(customCups));
+}
+
+function openCustomizeCupsModal() {
+    const modal = document.getElementById('customizeCupsModal');
+    modal.style.display = 'flex';
+    renderCustomCupsList();
+}
+
+function closeCustomizeCupsModal() {
+    const modal = document.getElementById('customizeCupsModal');
+    modal.style.display = 'none';
+}
+
+function renderCustomCupsList() {
+    const cupsList = document.getElementById('cupsList');
+    
+    if (customCups.length === 0) {
+        cupsList.innerHTML = '<p style="text-align: center; color: #999;">Nenhum copo adicionado</p>';
+        return;
+    }
+    
+    cupsList.innerHTML = `
+        <div style="display: grid; gap: 10px;">
+            ${customCups.map(cup => `
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: white; border-radius: 10px; border: 2px solid #f0f0f0; box-shadow: 0 2px 6px rgba(0,0,0,0.06);">
+                    <div>
+                        <strong style="color: var(--text-color);">${cup.value}ml</strong>
+                        <small style="color: #999; display: block; margin-top: 4px;">${cup.label}</small>
+                    </div>
+                    <button onclick="removeCup(${cup.id})" class="btn-small btn-delete">Remover</button>
+                </div>
+            `).join('')}
+        </div>
+    `;
+}
+
+function addNewCup() {
+    const input = document.getElementById('newCupValue');
+    const value = parseInt(input.value);
+    
+    if (!value || value < 50 || value > 2000) {
+        alert('Por favor, insira um valor entre 50ml e 2000ml');
+        return;
+    }
+    
+    // Verificar se já existe um copo com esse valor
+    if (customCups.some(cup => cup.value === value)) {
+        alert('Esse tamanho de copo já existe!');
+        return;
+    }
+    
+    const newCup = {
+        id: Date.now(),
+        value: value,
+        label: `${value}ml`
+    };
+    
+    customCups.push(newCup);
+    customCups.sort((a, b) => a.value - b.value); // Ordenar por valor
+    
+    saveCustomCups();
+    renderCustomCupsList();
+    updateWaterQuickButtons();
+    
+    input.value = '';
+    alert('Copo adicionado com sucesso! 💧');
+}
+
+function removeCup(id) {
+    if (customCups.length <= 1) {
+        alert('Você precisa ter pelo menos um copo!');
+        return;
+    }
+    
+    if (confirm('Tem certeza que deseja remover esse copo?')) {
+        customCups = customCups.filter(cup => cup.id !== id);
+        saveCustomCups();
+        renderCustomCupsList();
+        updateWaterQuickButtons();
+        alert('Copo removido!');
+    }
+}
+
+function updateWaterQuickButtons() {
+    const quickButtons = document.querySelector('.quick-buttons');
+    
+    quickButtons.innerHTML = customCups.map(cup => 
+        `<button onclick="addWaterCup(${cup.value})" class="btn btn-quick">${cup.label}</button>`
+    ).join('');
+}
+
+// ============ WATER GOAL FUNCTIONS ============
+function getRecommendedWaterGoal() {
+    // Obtém o peso mais recente do registro de medidas
+    const measurements = getMeasurements();
+    
+    if (Object.keys(measurements).length === 0) {
+        return null; // Sem medidas registradas
+    }
+    
+    // Pega a medida mais recente (últimas chaves são as mais recentes)
+    const sortedMonths = Object.keys(measurements).sort().reverse();
+    const latestMeasurement = measurements[sortedMonths[0]];
+    
+    if (!latestMeasurement || !latestMeasurement.weight || latestMeasurement.weight <= 0) {
+        return null; // Sem peso registrado
+    }
+    
+    // Cálculo: 35ml × peso corporal
+    const recommendedGoal = Math.round(latestMeasurement.weight * 35);
+    return recommendedGoal;
+}
+
+function loadWaterGoal() {
+    const goal = localStorage.getItem(`waterGoal_${currentUser.id}`);
+    waterGoal = goal ? parseInt(goal) : 2000;
+}
+
+function saveWaterGoal() {
+    localStorage.setItem(`waterGoal_${currentUser.id}`, waterGoal.toString());
+    updateWaterGoalDisplay();
+}
+
+function openWaterGoalModal() {
+    const modal = document.getElementById('waterGoalModal');
+    modal.style.display = 'flex';
+    updateWaterGoalButtonStates();
+    
+    // Exibir meta recomendada se houver peso registrado
+    const recommendedGoal = getRecommendedWaterGoal();
+    const recommendedContainer = document.getElementById('recommendedWaterContainer');
+    
+    if (recommendedGoal) {
+        recommendedContainer.style.display = 'block';
+        document.getElementById('recommendedWaterValue').textContent = recommendedGoal.toLocaleString('pt-BR');
+    } else {
+        recommendedContainer.style.display = 'none';
+    }
+}
+
+function closeWaterGoalModal() {
+    const modal = document.getElementById('waterGoalModal');
+    modal.style.display = 'none';
+}
+
+function updateWaterGoalButtonStates() {
+    document.querySelectorAll('.water-goal-btn').forEach(btn => {
+        const btnGoal = parseInt(btn.getAttribute('data-goal'));
+        if (btnGoal === waterGoal) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+}
+
+function setWaterGoal(goal) {
+    waterGoal = goal;
+    saveWaterGoal();
+    renderWaterTab();
+    renderWaterChart();
+    closeWaterGoalModal();
+}
+
+function setCustomWaterGoal() {
+    const input = document.getElementById('customWaterGoal');
+    const value = parseInt(input.value);
+    
+    if (!value || value < 250 || value > 5000) {
+        alert('Por favor, insira um valor entre 250ml e 5000ml');
+        return;
+    }
+    
+    waterGoal = value;
+    saveWaterGoal();
+    renderWaterTab();
+    renderWaterChart();
+    input.value = '';
+    alert('Meta atualizada com sucesso! 🎯');
+}
+
+function updateWaterGoalDisplay() {
+    const goalDisplay = document.getElementById('waterGoalDisplay');
+    if (goalDisplay) {
+        const goalLiters = (waterGoal / 1000).toFixed(1).replace('.', ',');
+        goalDisplay.textContent = `Meta: ${waterGoal}ml (${goalLiters}L)`;
+    }
 }
